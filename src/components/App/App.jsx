@@ -1,61 +1,97 @@
-import { useEffect, useState } from 'react';
-import { nanoid } from 'nanoid';
-import ContactForm from '../ContactForm/ContactForm';
-import ContactList from '../ContactList/ContactList';
-import SearchBox from '../SearchBox/SearchBox';
-import initialContacts from '../initialContacts.json';
-import css from './App.module.css';
-
-const getCurrentContacts = () => {
-  const savedContacts = localStorage.getItem("current-contacts");
-  return savedContacts !== null ? JSON.parse(savedContacts) : initialContacts;
-}; 
+import { useState, useEffect } from 'react';
+import { fetchImages } from '../../api';
+import ImageGallery from '../ImageGallery/ImageGallery';
+import SearchBar from '../SearchBar/SearchBar';
+import Loader from '../Loader/Loader';
+import ErrorMessage from '../ErrorMessage/ErrorMessage';
+import LoadMoreBtn from '../LoadMoreBtn/LoadMoreBtn';
+import ImageModal from '../ImageModal/ImageModal';
 
 const App = () => {
-  const [inputValue, setInputValue] = useState("");
-  const [contactList, setContactList] = useState(getCurrentContacts);
-  
+  const [query, setQuery] = useState('');
+  const [images, setImages] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isError, setIsError] = useState(false);
+  const [isEmpty, setIsEmpty] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
+  const [page, setPage] = useState(1);
+  const [showModal, setShowModal] = useState(false);
+  const [selectedImageInfo, setSelectedImageInfo] = useState({});
+
   useEffect(() => {
-    localStorage.setItem('current-contacts', JSON.stringify(contactList));
-  }, [contactList]);
+    const getImages = async () => {
+      try {
+        setIsLoading(true);
+        const { results, total_pages } = await fetchImages({ query, page });
 
-  const updateSearchFilter = (evt) => {
-    setInputValue(evt.target.value);
-  };
+        if (!results.length) {
+          setIsEmpty(true);
+          return;
+        }
 
-  const filteredContacts = contactList.filter((contact) =>
-    contact.name.toLocaleLowerCase().includes(inputValue.toLowerCase())
-  );
-
-  const addContact = (values, actions) => {
-    const newContact = {
-      id: nanoid(),
-      name: values.name,
-      number: values.number,
+        setImages(prev => [...prev, ...results]);
+        setIsVisible(page < total_pages);
+      } catch (error) {
+        setIsError(true);
+      } finally {
+        setIsLoading(false);
+      }
     };
-    setContactList((prevContacts) => {
-      return [...prevContacts, newContact];
-    });
-    actions.resetForm();
+    getImages();
+  }, [query, page]);
+
+  const handleSearch = value => {
+    if (value === query) return;
+    setImages([]);
+    setIsError(false);
+    setQuery(value);
+    setPage(1);
+    setIsEmpty(false);
+    setIsVisible(false);
   };
 
-  const handleDeleteContact = (contactId) => {
-    setContactList((prevContacts) =>
-      prevContacts.filter((contact) => contact.id !== contactId)
-    );
+  const handleLoadMore = () => {
+    setPage(prevPage => prevPage + 1);
   };
-  
+
+  const openModal = values => {
+    setSelectedImageInfo(values);
+    setShowModal(true);
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setSelectedImageInfo({});
+  };
 
   return (
-    <div className={css.container}>
-      <h1>Phonebook</h1>
-      <ContactForm onSubmit={addContact} />
-      <SearchBox value={inputValue} onChange={updateSearchFilter} />
-      <ContactList
-        searchContact={filteredContacts}
-        deleteContact={handleDeleteContact}
-      />
+    <div>
+      <SearchBar onSubmit={handleSearch} />
+
+      {isError && (
+        <ErrorMessage>Whoops, something went wrong! Please try reloading this page!</ErrorMessage>
+      )}
+
+      {images.length !== 0 && <ImageGallery images={images} openModal={openModal} />}
+
+      {isEmpty && query && <ErrorMessage>Sorry. There are no images ... </ErrorMessage>}
+
+
+      {isVisible && (
+        <div>
+          {isLoading ? (<Loader />) : (
+          <LoadMoreBtn disabled={isLoading} onClick={handleLoadMore}>
+              Load more
+            </LoadMoreBtn>   
+          )}
+        </div>
+      )}
+
+      {isLoading && <Loader />}
+
+      <ImageModal closeModal={closeModal} modalIsOpen={showModal} modal={selectedImageInfo} />
     </div>
   );
 };
+
 export default App;

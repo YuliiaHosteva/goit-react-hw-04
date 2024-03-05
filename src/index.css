@@ -6,9 +6,9 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: linear-gradient(to right, rgb(89, 177, 215),
-   rgb(61, 111, 128),
-   rgb(100, 156, 181));
+  background: linear-gradient(to right, rgb(17, 115, 157), 
+   rgb(60, 166, 198),
+   rgb(104, 168, 196));
 }
 
 
